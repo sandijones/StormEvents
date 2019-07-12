@@ -22,8 +22,9 @@ setwd("~/R/win-library/3.6")
  Storm <- do.call("rbind", list(Storm2004, Storm2005,Storm2006, Storm2007, Storm2008, Storm2009, Storm2010,
               Storm2011, Storm2012, Storm2013, Storm2014, Storm2015, Storm2016, Storm2017,
               Storm2018))
+ write.csv(StormTemp,"~/R/win-library/3.6/Storm.csv", row.names = FALSE) 
  StormTemp <- Storm
-#write.csv(StormTemp,"~/R/win-library/3.6/Storm15Years.csv", row.names = FALSE)
+write.csv(StormTemp,"~/R/win-library/3.6/StormTemp.csv", row.names = FALSE)
 dim(StormTemp)
 
 for (i in 1:nrow(StormTemp)){
@@ -108,4 +109,68 @@ StormTemp[i, "DAMAGE_PROPERTY"] <- damage
 StormTemp[i, "DATE"] <- as.Date(str_sub(date, 1, 10), format="%m/%d/%Y")
 
 }
+save(StormTemp,file="StormTempData")
+write.csv(StormTemp,"~/R/win-library/3.6/StormTemp15.csv", row.names = FALSE)
+StormFinal <- StormTemp
+
+# Combine Hurricane and Hurricane (Typhoon)
+for (j in 1:nrow(StormFinal)){  
+event <- toString(StormFinal[j, "EVENT_TYPE"])
+
+if (event %in% c("Hurricane (Typhoon)", "Hurricane"))  {
+  event="Hurricane"
+}
+StormFinal[j, "EVENT_TYPE"] <- event
+}
+save(StormFinal,file="StormFinalData")
+
+#Summary Stats
+summary(StormFinal)
+mean(as.numeric(!is.na(StormFinal$DAMAGE_PROPERTY)))
+sd(as.numeric(!is.na(StormFinal$DAMAGE_PROPERTY)))
+
+#Visualizations
+# EVENT_TYPE by Sum DAMAGE_PROPERTY
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY)) %>%  group_by(EVENT_TYPE, YEAR) %>%
+  summarize(DAMAGE_TOTAL=sum(as.numeric(DAMAGE_PROPERTY)))
+view(StormFilter)
+
+# Bar graph Hurricane DAMAGE_PROPERTY per year
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY)) %>%  group_by(EVENT_TYPE, YEAR)
+view(StormFilter)
+
+ggplot(data = StormFilter) +
+  geom_bar(mapping = aes(x = YEAR))+
+  ggtitle("Damage per Hurricane") +
+  xlab("Hurricane") + ylab("Damage amount")
+
+# Scatterplot Hurricane count by year
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane") %>%  group_by(YEAR, EVENT_TYPE) %>%
+    summarise(CountEvent=(count=n()))
+view(StormCountType)
+
+ggplot(data = StormFilter) + 
+  geom_point(mapping=aes(x=YEAR, y=CountEvent, color=EVENT_TYPE))+
+  ggtitle("number of hurricanes")
+
+# Bargraph of EVENT_TYPE
+StormFilter <- StormFinal %>% filter(EVENT_TYPE %in% c("Hurricane", "Flood", "Flash Flood")) %>% 
+  select( STATE, YEAR, MONTH_NAME, EVENT_TYPE, DAMAGE_PROPERTY)
+
+view(StormFilter)
+ggplot(data = StormFilter) + 
+  geom_bar(mapping = aes(x = EVENT_TYPE,fill=EVENT_TYPE))
+
+# Bargraph of Hurricanes per month
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane")
+
+ggplot(data = StormFilter) + 
+  geom_bar(mapping = aes(x = str_sub(BEGIN_YEARMONTH,5,7)))+
+  ggtitle("Hurricanes Per Month") +
+  xlab("Month") + ylab("Number of Hurricanes")
+
+#Storm Count by EVENT_TYPE
+StormCountType <- StormFinal %>% filter(EVENT_TYPE %in% c("Hurricane", "Flood", "Flash Flood")) %>%  group_by(EVENT_TYPE) %>%
+  select( YEAR, EVENT_TYPE) %>% summarise(count=n())
+head(StormCountType)
 
