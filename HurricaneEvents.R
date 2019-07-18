@@ -1,5 +1,5 @@
-library("tidyverse")
 setwd("~/R/win-library/3.6")
+library("tidyverse")
 
  Storm2004 <- read.csv("2004StormEvents.csv", header=TRUE, stringsAsFactors = FALSE)
  Storm2005 <- read.csv("2005StormEvents.csv", header=TRUE, stringsAsFactors = FALSE)
@@ -17,13 +17,11 @@ setwd("~/R/win-library/3.6")
  Storm2017 <- read.csv("2017StormEvents.csv", header=TRUE, stringsAsFactors = FALSE)
  Storm2018 <- read.csv("2018StormEvents.csv", header=TRUE, stringsAsFactors = FALSE)
 
- dim(Storm2004)+ dim(Storm2005)+dim(Storm2006)+dim(Storm2007)+dim(Storm2008)+dim(Storm2009)+dim(Storm2010) +dim(Storm2011)+dim(Storm2012)+dim(Storm2013)+dim(Storm2014)++dim(Storm2015)+dim(Storm2016)+dim(Storm2017)+dim(Storm2018)
-
  Storm <- do.call("rbind", list(Storm2004, Storm2005,Storm2006, Storm2007, Storm2008, Storm2009, Storm2010,
               Storm2011, Storm2012, Storm2013, Storm2014, Storm2015, Storm2016, Storm2017,
               Storm2018))
- write.csv(StormTemp,"~/R/win-library/3.6/Storm.csv", row.names = FALSE) 
- StormTemp <- Storm
+write.csv(StormTemp,"~/R/win-library/3.6/Storm.csv", row.names = FALSE) 
+StormTemp <- Storm
 write.csv(StormTemp,"~/R/win-library/3.6/StormTemp.csv", row.names = FALSE)
 dim(StormTemp)
 
@@ -123,6 +121,7 @@ if (event %in% c("Hurricane (Typhoon)", "Hurricane"))  {
 StormFinal[j, "EVENT_TYPE"] <- event
 }
 save(StormFinal,file="StormFinalData")
+load("StormFinalData")
 
 #Summary Stats
 summary(StormFinal)
@@ -134,7 +133,9 @@ sd(as.numeric(!is.na(StormFinal$DAMAGE_PROPERTY)))
 StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY)) %>%  group_by(EVENT_TYPE, YEAR) %>%
   summarize(DAMAGE_TOTAL=sum(as.numeric(DAMAGE_PROPERTY)))
 view(StormFilter)
-sd(as.numeric(!is.na(StormFinal$DAMAGE_PROPERTY)))
+sd(StormFilter$DAMAGE_TOTAL)
+mean(StormFilter$DAMAGE_TOTAL)
+range(StormFilter$DAMAGE_TOTAL)
 
 # Bar graph Hurricane DAMAGE_PROPERTY per year
 StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY)) %>%  group_by(EVENT_TYPE, YEAR)
@@ -148,7 +149,11 @@ ggplot(data = StormFilter) +
 # Scatterplot Hurricane count by year
 StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane") %>%  group_by(YEAR, EVENT_TYPE) %>%
     summarise(CountEvent=(count=n()))
-view(StormCountType)
+view(StormFilter)
+
+sd(StormFilter$CountEvent)
+mean(StormFilter$CountEvent)
+range(StormFilter$CountEvent)
 
 ggplot(data = StormFilter) + 
   geom_point(mapping=aes(x=YEAR, y=CountEvent, color=EVENT_TYPE))+
@@ -176,7 +181,30 @@ StormCountType <- StormFinal %>% filter(EVENT_TYPE %in% c("Hurricane", "Flood", 
 head(StormCountType)
 view(StormCountType)
 
-load("StormFinalData")
+#ANOVA
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY))
 
-ANOVA_RESULTS <- aov(DAMAGE_PROPERTY~YEAR, data=StormFinal)
+ANOVA_RESULTS <- aov(DAMAGE_PROPERTY~YEAR, data=StormFilter)
 summary(ANOVA_RESULTS)
+
+cor(StormFinal, use="pairwise.complete.obs", method="pearson")
+
+#Multiple regression
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY)) %>% 
+  select(DAMAGE_PROPERTY, CATEGORY, STATE, MONTH_NAME, BEGIN_DATE_TIME, END_DATE_TIME)%>%
+  mutate(DAYS_DIFF=as.numeric(as.Date(str_sub(END_DATE_TIME, 1, 10),format="%m/%d/%Y")-as.Date(str_sub(BEGIN_DATE_TIME, 1, 10), format="%m/%d/%Y")))
+view(StormFilter)
+
+model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + factor(STATE) + DAYS_DIFF, data = StormFilter)
+summary(model)
+model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY, data = StormFilter)
+summary(model)
+confint(model)
+
+
+
+
+
+
+
+
