@@ -1,4 +1,5 @@
 setwd("~/R/win-library/3.6")
+library(devtools)
 library("tidyverse")
 
  Storm2004 <- read.csv("2004StormEvents.csv", header=TRUE, stringsAsFactors = FALSE)
@@ -195,16 +196,44 @@ StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PR
   mutate(DAYS_DIFF=as.numeric(as.Date(str_sub(END_DATE_TIME, 1, 10),format="%m/%d/%Y")-as.Date(str_sub(BEGIN_DATE_TIME, 1, 10), format="%m/%d/%Y")))
 view(StormFilter)
 
-model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + factor(STATE) + DAYS_DIFF, data = StormFilter)
+model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = StormFilter)
 summary(model)
 model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY, data = StormFilter)
 summary(model)
 confint(model)
 
+#Create two new data sets
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY), !is.na(CATEGORY)) %>% 
+  select(DAMAGE_PROPERTY, CATEGORY, STATE, MONTH_NAME, BEGIN_DATE_TIME, END_DATE_TIME)%>%
+  mutate(DAYS_DIFF=as.numeric(as.Date(str_sub(END_DATE_TIME, 1, 10),format="%m/%d/%Y")-as.Date(str_sub(BEGIN_DATE_TIME, 1, 10), format="%m/%d/%Y")))
+view(StormFilter)
 
+set.seed(123)
+train <- sample(1:nrow(StormFilter), .75*nrow(StormFilter), replace=FALSE)
+test <- setdiff(1:nrow(StormFilter), train)
+trainData <- StormFilter[train,]
+testData <- StormFilter[test,]
+view(trainData)
+view(testData)
 
+#Multiple Regression on training data
+model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
+summary(model)
 
+#Random Forest on training data
+library(randomForest)
 
+trainData$DAMAGE_PROPERTY <- as.numeric(trainData$DAMAGE_PROPERTY)
+trainData$STATE <- as.factor(trainData$STATE)
+trainData$MONTH_NAME <- as.factor(trainData$MONTH_NAME)
+view(trainData)
 
+modelRF <- randomForest(formula = as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
+print(modelRF)
 
+plot(modelRF)
+which.min(modelRF$mse)
+sqrt(modelRF$mse[which.min(modelRF$mse)])
+importance(modelRF)
 
+varImpPlot(modelRF)
