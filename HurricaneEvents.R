@@ -182,7 +182,7 @@ StormCountType <- StormFinal %>% filter(EVENT_TYPE %in% c("Hurricane", "Flood", 
 head(StormCountType)
 view(StormCountType)
 
-#ANOVA
+#ANOVA on entire data set
 StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY))
 
 ANOVA_RESULTS <- aov(DAMAGE_PROPERTY~YEAR, data=StormFilter)
@@ -190,7 +190,7 @@ summary(ANOVA_RESULTS)
 
 cor(StormFinal, use="pairwise.complete.obs", method="pearson")
 
-#Multiple regression
+#Multiple regression on entire data set
 StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY)) %>% 
   select(DAMAGE_PROPERTY, CATEGORY, STATE, MONTH_NAME, BEGIN_DATE_TIME, END_DATE_TIME)%>%
   mutate(DAYS_DIFF=as.numeric(as.Date(str_sub(END_DATE_TIME, 1, 10),format="%m/%d/%Y")-as.Date(str_sub(BEGIN_DATE_TIME, 1, 10), format="%m/%d/%Y")))
@@ -202,38 +202,42 @@ model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY, data = StormFilter)
 summary(model)
 confint(model)
 
-#Create two new data sets
+#Create training and test data sets
 StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY), !is.na(CATEGORY)) %>% 
-  select(DAMAGE_PROPERTY, CATEGORY, STATE, MONTH_NAME, BEGIN_DATE_TIME, END_DATE_TIME)%>%
+  select(DAMAGE_PROPERTY, CATEGORY, STATE, MONTH_NAME, BEGIN_DATE_TIME, END_DATE_TIME) %>%
   mutate(DAYS_DIFF=as.numeric(as.Date(str_sub(END_DATE_TIME, 1, 10),format="%m/%d/%Y")-as.Date(str_sub(BEGIN_DATE_TIME, 1, 10), format="%m/%d/%Y")))
-view(StormFilter)
+StormFilter$DAMAGE_PROPERTY <- as.numeric(StormFilter$DAMAGE_PROPERTY)
+StormFilter$STATE <- as.factor(StormFilter$STATE)
+StormFilter$MONTH_NAME <- as.factor(StormFilter$MONTH_NAME)
+StormFilter %>% select(STATE) %>% group_by(STATE) %>% summarize(CountState=(count=n()))
+#view(StormFilter)
 
-set.seed(123)
+set.seed(1234)
 train <- sample(1:nrow(StormFilter), .75*nrow(StormFilter), replace=FALSE)
 test <- setdiff(1:nrow(StormFilter), train)
 trainData <- StormFilter[train,]
 testData <- StormFilter[test,]
-view(trainData)
-view(testData)
+#view(trainData)
+#view(testData)
 
-#Multiple Regression on training data
+#levels(trainData$STATE)
+#levels(testData$STATE)
+
+#Compare multiple Regression model predictions to actual data
 model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
+predicted <- predict(model,testData)
+mse <- mean((testData$DAMAGE_PROPERTY-predicted)^2)
 summary(model)
 
-#Random Forest on training data
+#Compare Random Forest model predictions to actual data
 library(randomForest)
-
-trainData$DAMAGE_PROPERTY <- as.numeric(trainData$DAMAGE_PROPERTY)
-trainData$STATE <- as.factor(trainData$STATE)
-trainData$MONTH_NAME <- as.factor(trainData$MONTH_NAME)
-view(trainData)
 
 modelRF <- randomForest(formula = as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
 print(modelRF)
-
 plot(modelRF)
-which.min(modelRF$mse)
-sqrt(modelRF$mse[which.min(modelRF$mse)])
+predictedRF <- predict(modelRF,testData)
+mseRF <- mean((testData$DAMAGE_PROPERTY-predictedRF)^2)
 importance(modelRF)
-
 varImpPlot(modelRF)
+
+mse - mseRF
