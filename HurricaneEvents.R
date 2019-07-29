@@ -125,6 +125,7 @@ save(StormFinal,file="StormFinalData")
 load("StormFinalData")
 
 #Summary Stats
+StormFilter <- StormFinal %>% filter(EVENT_TYPE == "Hurricane", !is.na(DAMAGE_PROPERTY))
 summary(StormFinal)
 mean(as.numeric(!is.na(StormFinal$DAMAGE_PROPERTY)))
 sd(as.numeric(!is.na(StormFinal$DAMAGE_PROPERTY)))
@@ -225,9 +226,11 @@ testData <- StormFilter[test,]
 
 #Compare multiple Regression model predictions to actual data
 model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
+summary(model)
+model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE, data = trainData)
+summary(model)
 predicted <- predict(model,testData)
 mse <- mean((testData$DAMAGE_PROPERTY-predicted)^2)
-summary(model)
 
 #Compare Random Forest model predictions to actual data
 library(randomForest)
