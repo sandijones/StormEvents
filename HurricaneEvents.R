@@ -218,11 +218,6 @@ train <- sample(1:nrow(StormFilter), .75*nrow(StormFilter), replace=FALSE)
 test <- setdiff(1:nrow(StormFilter), train)
 trainData <- StormFilter[train,]
 testData <- StormFilter[test,]
-#view(trainData)
-#view(testData)
-
-#levels(trainData$STATE)
-#levels(testData$STATE)
 
 #Compare multiple Regression model predictions to actual data
 model <- lm(as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
@@ -234,7 +229,6 @@ mse <- mean((testData$DAMAGE_PROPERTY-predicted)^2)
 
 #Compare Random Forest model predictions to actual data
 library(randomForest)
-
 modelRF <- randomForest(formula = as.numeric(DAMAGE_PROPERTY) ~ CATEGORY + STATE + DAYS_DIFF, data = trainData)
 print(modelRF)
 plot(modelRF)
